@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyLawManager - Legal Practice Management</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.1); }
+        .hover-lift { transition: transform 0.2s; }
+        .hover-lift:hover { transform: translateY(-2px); }
+        .sidebar-shadow { box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Mock Database (In production, this would be a real database)
+        const mockDB = {
+            users: JSON.parse(localStorage.getItem('mlm_users') || '[]'),
+            clients: JSON.parse(localStorage.getItem('mlm_clients') || '[]'),
+            documents: JSON.parse(localStorage.getItem('mlm_documents') || '[]'),
+            currentUser: JSON.parse(localStorage.getItem('mlm_current_user') || 'null')
+        };
+
+        const saveToStorage = () => {
+            localStorage.setItem('mlm_users', JSON.stringify(mockDB.users));
+            localStorage.setItem('mlm_clients', JSON.stringify(mockDB.clients));
+            localStorage.setItem('mlm_documents', JSON.stringify(mockDB.documents));
+            localStorage.setItem('mlm_current_user', JSON.stringify(mockDB.currentUser));
+        };
+
+        // Main App Component
+        const MyLawManager = () => {
+            const [currentUser, setCurrentUser] = useState(mockDB.currentUser);
+            const [activeSection, setActiveSection] = useState('dashboard');
+            const [clients, setClients] = useState(mockDB.clients);
+            const [documents, setDocuments] = useState(mockDB.documents);
+
+            useEffect(() => {
+                mockDB.currentUser = currentUser;
+                mockDB.clients = clients;
+                mockDB.documents = documents;
+                saveToStorage();
+            }, [currentUser, clients, documents]);
+
+            if (!currentUser) {
+                return <AuthScreen setCurrentUser={setCurrentUser} />;
+            }
+
+            return (
+                <div className="flex h-screen bg-gray-50">
+                    <Sidebar activeSection={activeSection} setActiveSection={setActiveSection} currentUser={currentUser} setCurrentUser={setCurrentUser} />
+                    <MainContent 
+                        activeSection={activeSection} 
+                        clients={clients} 
+                        setClients={setClients}
+                        documents={documents}
+                        setDocuments={setDocuments}
+                        currentUser={currentUser}
+                    />
+                </div>
+            );
+        };
+
+        // Authentication Screen
+        const AuthScreen = ({ setCurrentUser }) => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [formData, setFormData] = useState({
+                email: '',
+                password: '',
+                firmName: '',
+                barNumber: ''
+            });
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+
+                // Simulate API delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                if (isLogin) {
+                    // Login logic
+                    const user = mockDB.users.find(u => u.email === formData.email && u.password === formData.password);
+                    if (user) {
+                        setCurrentUser(user);
+                    } else {
+                        alert('Invalid credentials');
+                    }
+                } else {
+                    // Registration logic
+                    const newUser = {
+                        id: Date.now(),
+                        email: formData.email,
+                        password: formData.password,
+                        firmName: formData.firmName,
+                        barNumber: formData.barNumber,
+                        subscription: 'trial',
+                        createdAt: new Date().toISOString()
+                    };
+                    mockDB.users.push(newUser);
+                    setCurrentUser(newUser);
+                }
+
+                setLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+                        <div className="text-center mb-8">
+                            <h1 className="text-3xl font-bold text-gray-800 mb-2">MyLawManager</h1>
+                            <p className="text-gray-600">Professional Legal Practice Management</p>
+                        </div>
+
+                        <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+                            <button
+                                className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+                                    isLogin ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'
+                                }`}
+                                onClick={() => setIsLogin(true)}
+                            >
+                                Login
+                            </button>
+                            <button
+                                className={`flex-1 py-2 px-4 rounded-md font-medium transition-colors ${
+                                    !isLogin ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'
+                                }`}
+                                onClick={() => setIsLogin(false)}
+                            >
+                                Register
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="space-y-4">
+                                <input
+                                    type="email"
+                                    placeholder="Email Address"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    required
+                                />
+                                <input
+                                    type="password"
+                                    placeholder="Password"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                    required
+                                />
+                                {!isLogin && (
+                                    <>
+                                        <input
+                                            type="text"
+                                            placeholder="Law Firm Name"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={formData.firmName}
+                                            onChange={(e) => setFormData({...formData, firmName: e.target.value})}
+                                            required
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Bar Number"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={formData.barNumber}
+                                            onChange={(e) => setFormData({...formData, barNumber: e.target.value})}
+                                            required
+                                        />
+                                    </>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full mt-6 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            >
+                                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+                            </button>
+                        </form>
+
+                        {isLogin && (
+                            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                                <p className="text-sm text-blue-700 mb-2">Demo Credentials:</p>
+                                <p className="text-xs text-blue-600">Email: demo@law.com</p>
+                                <p className="text-xs text-blue-600">Password: demo123</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Sidebar Component
+        const Sidebar = ({ activeSection, setActiveSection, currentUser, setCurrentUser }) => {
+            const menuItems = [
+                { id: 'dashboard', icon: 'fas fa-home', label: 'Dashboard' },
+                { id: 'clients', icon: 'fas fa-users', label: 'Clients' },
+                { id: 'documents', icon: 'fas fa-file-alt', label: 'Documents' },
+                { id: 'ai-assistant', icon: 'fas fa-robot', label: 'AI Assistant' },
+                { id: 'search', icon: 'fas fa-search', label: 'Search' },
+                { id: 'billing', icon: 'fas fa-credit-card', label: 'Billing' },
+                { id: 'settings', icon: 'fas fa-cog', label: 'Settings' }
+            ];
+
+            return (
+                <div className="w-64 bg-white sidebar-shadow flex flex-col">
+                    <div className="p-6 border-b border-gray-200">
+                        <h1 className="text-xl font-bold text-gray-800">MyLawManager</h1>
+                        <p className="text-sm text-gray-600 mt-1">{currentUser.firmName}</p>
+                    </div>
+
+                    <nav className="flex-1 p-4">
+                        <ul className="space-y-2">
+                            {menuItems.map((item) => (
+                                <li key={item.id}>
+                                    <button
+                                        onClick={() => setActiveSection(item.id)}
+                                        className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
+                                            activeSection === item.id
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'text-gray-600 hover:bg-gray-100'
+                                        }`}
+                                    >
+                                        <i className={`${item.icon} mr-3`}></i>
+                                        {item.label}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </nav>
+
+                    <div className="p-4 border-t border-gray-200">
+                        <div className="flex items-center mb-3">
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                                {currentUser.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm font-medium text-gray-800">{currentUser.email}</p>
+                                <p className="text-xs text-gray-500 capitalize">{currentUser.subscription} Plan</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setCurrentUser(null)}
+                            className="w-full text-sm text-gray-600 hover:text-red-600 transition-colors"
+                        >
+                            <i className="fas fa-sign-out-alt mr-2"></i>
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main Content Area
+        const MainContent = ({ activeSection, clients, setClients, documents, setDocuments, currentUser }) => {
+            const renderContent = () => {
+                switch (activeSection) {
+                    case 'dashboard':
+                        return <Dashboard clients={clients} documents={documents} />;
+                    case 'clients':
+                        return <ClientsSection clients={clients} setClients={setClients} />;
+                    case 'documents':
+                        return <DocumentsSection documents={documents} setDocuments={setDocuments} clients={clients} />;
+                    case 'ai-assistant':
+                        return <AIAssistant />;
+                    case 'search':
+                        return <SearchSection clients={clients} documents={documents} />;
+                    case 'billing':
+                        return <BillingSection currentUser={currentUser} />;
+                    case 'settings':
+                        return <SettingsSection currentUser={currentUser} />;
+                    default:
+                        return <Dashboard clients={clients} documents={documents} />;
+                }
+            };
+
+            return (
+                <div className="flex-1 overflow-auto">
+                    {renderContent()}
+                </div>
+            );
+        };
+
+        // Dashboard Component
+        const Dashboard = ({ clients, documents }) => {
+            const stats = [
+                { label: 'Total Clients', value: clients.length, icon: 'fas fa-users', color: 'blue' },
+                { label: 'Active Cases', value: clients.filter(c => c.status === 'active').length, icon: 'fas fa-folder-open', color: 'green' },
+                { label: 'Documents', value: documents.length, icon: 'fas fa-file-alt', color: 'purple' },
+                { label: 'This Month', value: '$45,230', icon: 'fas fa-dollar-sign', color: 'yellow' }
+            ];
+
+            const recentClients = clients.slice(-5).reverse();
+
+            return (
+                <div className="p-8">
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+                        <p className="text-gray-600">Overview of your legal practice</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        {stats.map((stat, index) => (
+                            <div key={index} className="bg-white rounded-xl card-shadow p-6 hover-lift">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+                                        <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                                    </div>
+                                    <div className={`w-12 h-12 bg-${stat.color}-100 rounded-lg flex items-center justify-center`}>
+                                        <i className={`${stat.icon} text-${stat.color}-600 text-xl`}></i>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <div className="bg-white rounded-xl card-shadow p-6">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Clients</h2>
+                            {recentClients.length === 0 ? (
+                                <p className="text-gray-500">No clients added yet</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {recentClients.map((client) => (
+                                        <div key={client.id} className="flex items-center p-3 border border-gray-200 rounded-lg">
+                                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                                <span className="text-blue-600 font-semibold">
+                                                    {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div className="ml-3">
+                                                <p className="font-medium text-gray-900">{client.name}</p>
+                                                <p className="text-sm text-gray-500">{client.caseType}</p>
+                                            </div>
+                                            <div className="ml-auto">
+                                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                                    client.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                    client.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {client.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-white rounded-xl card-shadow p-6">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+                            <div className="space-y-3">
+                                <button className="w-full flex items-center p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                    <i className="fas fa-user-plus text-blue-600 mr-3"></i>
+                                    <span className="font-medium">Add New Client</span>
+                                </button>
+                                <button className="w-full flex items-center p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                    <i className="fas fa-file-upload text-green-600 mr-3"></i>
+                                    <span className="font-medium">Upload Document</span>
+                                </button>
+                                <button className="w-full flex items-center p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                    <i className="fas fa-robot text-purple-600 mr-3"></i>
+                                    <span className="font-medium">Generate Document with AI</span>
+                                </button>
+                                <button className="w-full flex items-center p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                                    <i className="fas fa-search text-orange-600 mr-3"></i>
+                                    <span className="font-medium">Search Case Law</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Clients Section
+        const ClientsSection = ({ clients, setClients }) => {
+            const [showAddClient, setShowAddClient] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+
+            const filteredClients = clients.filter(client =>
+                client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                client.caseType.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            const addClient = (clientData) => {
+                const newClient = {
+                    ...clientData,
+                    id: Date.now(),
+                    createdAt: new Date().toISOString()
+                };
+                setClients([...clients, newClient]);
+                setShowAddClient(false);
+            };
+
+            return (
+                <div className="p-8">
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">Clients</h1>
+                            <p className="text-gray-600">Manage your client relationships</p>
+                        </div>
+                        <button
+                            onClick={() => setShowAddClient(true)}
+                            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                        >
+                            <i className="fas fa-plus mr-2"></i>
+                            Add Client
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-xl card-shadow p-6">
+                        <div className="mb-6">
+                            <div className="relative">
+                                <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                <input
+                                    type="text"
+                                    placeholder="Search clients..."
+                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {filteredClients.length === 0 ? (
+                            <div className="text-center py-12">
+                                <i className="fas fa-users text-4xl text-gray-300 mb-4"></i>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">No clients found</h3>
+                                <p className="text-gray-600 mb-4">Get started by adding your first client</p>
+                                <button
+                                    onClick={() => setShowAddClient(true)}
+                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                    Add Client
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {filteredClients.map((client) => (
+                                    <div key={client.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                                    <span className="text-blue-600 font-bold">
+                                                        {client.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                                    </span>
+                                                </div>
+                                                <div className="ml-4">
+                                                    <h3 className="text-lg font-semibold text-gray-900">{client.name}</h3>
+                                                    <p className="text-gray-600">{client.caseType}</p>
+                                                    <p className="text-sm text-gray-500">{client.email}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className={`px-3 py-1 text-sm rounded-full ${
+                                                    client.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                    client.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {client.status}
+                                                </span>
+                                                <p className="text-sm text-gray-500 mt-1">
+                                                    Added {new Date(client.createdAt).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {showAddClient && <AddClientModal onAdd={addClient} onClose={() => setShowAddClient(false)} />}
+                </div>
+            );
+        };
+
+        // Add Client Modal
+        const AddClientModal = ({ onAdd, onClose }) => {
+            const [formData, setFormData] = useState({
+                name: '',
+                email: '',
+                phone: '',
+                caseType: '',
+                status: 'active',
+                notes: ''
+            });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                onAdd(formData);
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">Add New Client</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit}>
+                            <div className="space-y-4">
+                                <input
+                                    type="text"
+                                    placeholder="Full Name"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                    required
+                                />
+                                <input
+                                    type="email"
+                                    placeholder="Email Address"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                    required
+                                />
+                                <input
+                                    type="tel"
+                                    placeholder="Phone Number"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                                />
+                                <select
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    value={formData.caseType}
+                                    onChange={(e) => setFormData({...formData, caseType: e.target.value})}
+                                    required
+                                >
+                                    <option value="">Select Case Type</option>
+                                    <option value="Family Law">Family Law</option>
+                                    <option value="Criminal Defense">Criminal Defense</option>
+                                    <option value="Personal Injury">Personal Injury</option>
+                                    <option value="Corporate Law">Corporate Law</option>
+                                    <option value="Real Estate">Real Estate</option>
+                                    <option value="Immigration">Immigration</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <select
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    value={formData.status}
+                                    onChange={(e) => setFormData({...formData, status: e.target.value})}
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                                <textarea
+                                    placeholder="Case notes..."
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    rows="3"
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                                ></textarea>
+                            </div>
+
+                            <div className="flex space-x-4 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Add Client
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
+        // Documents Section
+        const DocumentsSection = ({ documents, setDocuments, clients }) => {
+            const [showUpload, setShowUpload] = useState(false);
+            const fileInputRef = useRef(null);
+
+            const handleFileUpload = (files, clientId, category) => {
+                Array.from(files).forEach(file => {
+                    // Simulate OCR processing
+                    const mockOCRText = `This is extracted text from ${file.name}. In a production environment, this would contain the actual OCR-processed text from the document using advanced text recognition technology.`;
+                    
+                    const newDocument = {
+                        id: Date.now() + Math.random(),
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        clientId: clientId,
+                        category: category,
+                        uploadedAt: new Date().toISOString(),
+                        extractedText: mockOCRText,
+                        confidence: 0.95
+                    };
+                    
+                    setDocuments(prev => [...prev, newDocument]);
+                });
+                setShowUpload(false);
+            };
+
+            return (
+                <div className="p-8">
+                    <div className="flex justify-between items-center mb-8">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900 mb-2">Document Management</h1>
+                            <p className="text-gray-600">Upload and manage case documents with AI-powered OCR</p>
+                        </div>
+                        <button
+                            onClick={() => setShowUpload(true)}
+                            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                        >
+                            <i className="fas fa-upload mr-2"></i>
+                            Upload Documents
+                        </button>
+                    </div>
+
+                    <div className="bg-white rounded-xl card-shadow p-6">
+                        {documents.length === 0 ? (
+                            <div className="text-center py-12">
+                                <i className="fas fa-file-alt text-4xl text-gray-300 mb-4"></i>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">No documents uploaded yet</h3>
+                                <p className="text-gray-600 mb-4">Upload your first document to get started with AI-powered text extraction</p>
+                                <button
+                                    onClick={() => setShowUpload(true)}
+                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                    Upload Document
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {documents.map((doc) => {
+                                    const client = clients.find(c => c.id === doc.clientId);
+                                    return (
+                                        <div key={doc.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex items-start">
+                                                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                        <i className={`fas ${
+                                                            doc.type.includes('pdf') ? 'fa-file-pdf text-red-600' :
+                                                            doc.type.includes('image') ? 'fa-file-image text-green-600' :
+                                                            'fa-file-alt text-blue-600'
+                                                        }`}></i>
+                                                    </div>
+                                                    <div className="ml-3">
+                                                        <h3 className="font-semibold text-gray-900">{doc.name}</h3>
+                                                        <p className="text-sm text-gray-600">
+                                                            Client: {client ? client.name : 'Unknown'} • {doc.category}
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {(doc.size / 1024 / 1024).toFixed(2)} MB • Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
+                                                        </p>
+                                                        <div className="mt-2">
+                                                            <div className="flex items-center text-xs text-green-600">
+                                                                <i className="fas fa-check-circle mr-1"></i>
+                                                                Text extracted ({(doc.confidence * 100).toFixed(0)}% confidence)
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex space-x-2">
+                                                    <button className="p-2 text-gray-400 hover:text-blue-600">
+                                                        <i className="fas fa-eye"></i>
+                                                    </button>
+                                                    <button className="p-2 text-gray-400 hover:text-red-600">
+                                                        <i className="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            {doc.extractedText && (
+                                                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                                                    <p className="text-xs font-medium text-gray-700 mb-1">Extracted Text Preview:</p>
+                                                    <p className="text-sm text-gray-600 line-clamp-3">{doc.extractedText}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {showUpload && (
+                        <UploadModal
+                            clients={clients}
+                            onUpload={handleFileUpload}
+                            onClose={() => setShowUpload(false)}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // Upload Modal
+        const UploadModal = ({ clients, onUpload, onClose }) => {
+            const [selectedClient, setSelectedClient] = useState('');
+            const [category, setCategory] = useState('');
+            const [dragActive, setDragActive] = useState(false);
+            const fileInputRef = useRef(null);
+
+            const handleDrag = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.type === "dragenter" || e.type === "dragover") {
+                    setDragActive(true);
+                } else if (e.type === "dragleave") {
+                    setDragActive(false);
+                }
+            };
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDragActive(false);
+                
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFiles(e.dataTransfer.files);
+                }
+            };
+
+            const handleFiles = (files) => {
+                if (selectedClient && category) {
+                    onUpload(files, parseInt(selectedClient), category);
+                } else {
+                    alert('Please select a client and category first');
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-lg w-full p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">Upload Documents</h2>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                                <i className="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <select
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                value={selectedClient}
+                                onChange={(e) => setSelectedClient(e.target.value)}
+                                required
+                            >
+                                <option value="">Select Client</option>
+                                {clients.map(client => (
+                                    <option key={client.id} value={client.id}>{client.name}</option>
+                                ))}
+                            </select>
+
+                            <select
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                                required
+                            >
+                                <option value="">Select Category</option>
+                                <option value="Pleadings">Pleadings</option>
+                                <option value="Discovery">Discovery</option>
+                                <option value="Correspondence">Correspondence</option>
+                                <option value="Court Orders">Court Orders</option>
+                                <option value="Evidence">Evidence</option>
+                                <option value="Other">Other</option>
+                            </select>
+
+                            <div
+                                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                                    dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+                                }`}
+                                onDragEnter={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDragOver={handleDrag}
+                                onDrop={handleDrop}
+                            >
+                                <i className="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                <p className="text-lg font-medium text-gray-900 mb-2">Drop files here to upload</p>
+                                <p className="text-gray-600 mb-4">or</p>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    Browse Files
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff"
+                                    onChange={(e) => e.target.files && handleFiles(e.target.files)}
+                                />
+                                <p className="text-xs text-gray-500 mt-2">
+                                    Supports PDF, DOC, DOCX, JPG, PNG, TIFF
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex space-x-4 mt-6">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // AI Assistant
+        const AIAssistant = () => {
+            const [messages, setMessages] = useState([
+                { id: 1, type: 'assistant', content: 'Hello! I\'m your AI legal assistant. I can help you draft documents, research case law, and answer legal questions. What would you like to work on today?' }
+            ]);
+            const [inputMessage, setInputMessage] = useState('');
+            const [isTyping, setIsTyping] = useState(false);
+
+            const sendMessage = async () => {
+                if (!inputMessage.trim()) return;
+
+                const userMessage = { id: Date.now(), type: 'user', content: inputMessage };
+                setMessages(prev => [...prev, userMessage]);
+                setInputMessage('');
+                setIsTyping(true);
+
+                // Simulate AI response
+                setTimeout(() => {
+                    const responses = [
+                        "I can help you draft that document. Based on your requirements, here's a suggested structure...",
+                        "For that type of case, you'll want to consider the following legal precedents...",
+                        "I've found several relevant case citations that might be helpful for your argument...",
+                        "That's an interesting legal question. Let me provide some analysis based on current law..."
+                    ];
+                    
+                    const aiResponse = {
+                        id: Date.now() + 1,
+                        type: 'assistant',
+                        content: responses[Math.floor(Math.random() * responses.length)]
+                    };
+                    
+                    setMessages(prev => [...prev, aiResponse]);
+                    setIsTyping(false);
+                }, 2000);
+            };
+
+            return (
+                <div className="h-full flex flex-col p-8">
+                    <div className="mb-6">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Legal Assistant</h1>
+                        <p className="text-gray-600">Get help with document drafting, research, and legal analysis</p>
+                    </div>
+
+                    <div className="flex-1 bg-white rounded-xl card-shadow flex flex-col">
+                        <div className="flex-1 p-6 overflow-y-auto">
+                            <div className="space-y-4">
+                                {messages.map((message) => (
+                                    <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-3xl p-4 rounded-lg ${
+                                            message.type === 'user' 
+                                                ? 'bg-blue-600 text-white' 
+                                                : 'bg-gray-100 text-gray-900'
+                                        }`}>
+                                            <p>{message.content}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {isTyping && (
+                                    <div className="flex justify-start">
+                                        <div className="bg-gray-100 text-gray-900 p-4 rounded-lg">
+                                            <div className="flex space-x-1">
+                                                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                                                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                                <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="border-t border-gray-200 p-4">
+                            <div className="flex space-x-4">
+                                <input
+                                    type="text"
+                                    placeholder="Ask me anything about legal matters..."
+                                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                                />
+                                <button
+                                    onClick={sendMessage}
+                                    disabled={!inputMessage.trim() || isTyping}
+                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                                >
+                                    <i className="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Search Section
+        const SearchSection = ({ clients, documents }) => {
+            const [searchQuery, setSearchQuery] = useState('');
+            const [searchResults, setSearchResults] = useState([]);
+            const [isSearching, setIsSearching] = useState(false);
+
+            const performSearch = async () => {
+                if (!searchQuery.trim()) return;
+                
+                setIsSearching(true);
+                
+                // Simulate search delay
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const results = [];
+                
+                // Search clients
+                clients.forEach(client => {
+                    if (client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        client.caseType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        client.notes?.toLowerCase().includes(searchQuery.toLowerCase())) {
+                        results.push({
+                            type: 'client',
+                            id: client.id,
+                            title: client.name,
+                            subtitle: client.caseType,
+                            content: client.notes,
+                            relevance: Math.random() * 100
+                        });
+                    }
+                });
+                
+                // Search documents
+                documents.forEach(doc => {
+                    if (doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        doc.extractedText?.toLowerCase().includes(searchQuery.toLowerCase())) {
+                        const client = clients.find(c => c.id === doc.clientId);
+                        results.push({
+                            type: 'document',
+                            id: doc.id,
+                            title: doc.name,
+                            subtitle: client ? `Client: ${client.name}` : 'Unknown Client',
+                            content: doc.extractedText,
+                            relevance: Math.random() * 100
+                        });
+                    }
+                });
+                
+                // Sort by relevance
+                results.sort((a, b) => b.relevance - a.relevance);
+                
+                setSearchResults(results);
+                setIsSearching(false);
+            };
+
+            return (
+                <div className="p-8">
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Search</h1>
+                        <p className="text-gray-600">Search across all clients, cases, and documents</p>
+                    </div>
+
+                    <div className="bg-white rounded-xl card-shadow p-6">
+                        <div className="flex space-x-4 mb-6">
+                            <div className="flex-1 relative">
+                                <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                                <input
+                                    type="text"
+                                    placeholder="Search clients, documents, case notes..."
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && performSearch()}
+                                />
+                            </div>
+                            <button
+                                onClick={performSearch}
+                                disabled={!searchQuery.trim() || isSearching}
+                                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                            >
+                                {isSearching ? <i className="fas fa-spinner fa-spin"></i> : 'Search'}
+                            </button>
+                        </div>
+
+                        {searchResults.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Search Results ({searchResults.length})
+                                </h3>
+                                {searchResults.map((result) => (
+                                    <div key={`${result.type}-${result.id}`} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                                        <div className="flex items-start">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
+                                                result.type === 'client' ? 'bg-blue-100' : 'bg-green-100'
+                                            }`}>
+                                                <i className={`fas ${
+                                                    result.type === 'client' ? 'fa-user text-blue-600' : 'fa-file-alt text-green-600'
+                                                }`}></i>
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="font-semibold text-gray-900">{result.title}</h4>
+                                                <p className="text-sm text-gray-600 mb-2">{result.subtitle}</p>
+                                                {result.content && (
+                                                    <p className="text-sm text-gray-700 line-clamp-3">
+                                                        {result.content.length > 200 
+                                                            ? result.content.substring(0, 200) + '...' 
+                                                            : result.content}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-xs text-gray-500">
+                                                    {result.relevance.toFixed(0)}% match
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {searchQuery && searchResults.length === 0 && !isSearching && (
+                            <div className="text-center py-12">
+                                <i className="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">No results found</h3>
+                                <p className="text-gray-600">Try different search terms or check your spelling</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Billing Section
+        const BillingSection = ({ currentUser }) => {
+            const [billingHistory] = useState([
+                { id: 1, date: '2024-01-15', amount: 49.99, status: 'paid', description: 'Professional Plan - Monthly' },
+                { id: 2, date: '2023-12-15', amount: 49.99, status: 'paid', description: 'Professional Plan - Monthly' },
+                { id: 3, date: '2023-11-15', amount: 49.99, status: 'paid', description: 'Professional Plan - Monthly' }
+            ]);
+
+            return (
+                <div className="p-8">
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Billing & Subscription</h1>
+                        <p className="text-gray-600">Manage your subscription and billing information</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-6">
+                            <div className="bg-white rounded-xl card-shadow p-6">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4">Current Plan</h2>
+                                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                                    <div>
+                                        <h3 className="font-semibold text-blue-900 capitalize">{currentUser.subscription} Plan</h3>
+                                        <p className="text-sm text-blue-700">
+                                            {currentUser.subscription === 'trial' ? 'Free trial - 14 days remaining' : '$49.99/month'}
+                                        </p>
+                                    </div>
+                                    <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                                        {currentUser.subscription === 'trial' ? 'Upgrade' : 'Change Plan'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl card-shadow p-6">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4">Billing History</h2>
+                                <div className="space-y-3">
+                                    {billingHistory.map((bill) => (
+                                        <div key={bill.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                                            <div>
+                                                <p className="font-medium text-gray-900">{bill.description}</p>
+                                                <p className="text-sm text-gray-600">{new Date(bill.date).toLocaleDateString()}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-semibold text-gray-900">${bill.amount}</p>
+                                                <span className={`px-2 py-1 text-xs rounded-full ${
+                                                    bill.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                }`}>
+                                                    {bill.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="bg-white rounded-xl card-shadow p-6">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4">Usage This Month</h2>
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="flex justify-between mb-1">
+                                            <span className="text-sm text-gray-600">Storage Used</span>
+                                            <span className="text-sm font-medium">2.3 GB / 10 GB</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className="bg-blue-600 h-2 rounded-full" style={{width: '23%'}}></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between mb-1">
+                                            <span className="text-sm text-gray-600">AI Requests</span>
+                                            <span className="text-sm font-medium">47 / 100</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className="bg-green-600 h-2 rounded-full" style={{width: '47%'}}></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between mb-1">
+                                            <span className="text-sm text-gray-600">OCR Processing</span>
+                                            <span className="text-sm font-medium">12 / 50</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div className="bg-purple-600 h-2 rounded-full" style={{width: '24%'}}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl card-shadow p-6">
+                                <h2 className="text-xl font-bold text-gray-900 mb-4">Payment Method</h2>
+                                <div className="flex items-center p-4 border border-gray-200 rounded-lg">
+                                    <i className="fab fa-cc-visa text-2xl text-blue-600 mr-3"></i>
+                                    <div>
+                                        <p className="font-medium">•••• •••• •••• 4242</p>
+                                        <p className="text-sm text-gray-600">Expires 12/25</p>
+                                    </div>
+                                </div>
+                                <button className="w-full mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium">
+                                    Update Payment Method
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Settings Section
+        const SettingsSection = ({ currentUser }) => {
+            const [settings, setSettings] = useState({
+                notifications: true,
+                emailUpdates: true,
+                darkMode: false,
+                autoBackup: true
+            });
+
+            return (
+                <div className="p-8">
+                    <div className="mb-8">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+                        <p className="text-gray-600">Manage your account preferences and security</p>
+                    </div>
+
+                    <div className="max-w-4xl space-y-6">
+                        <div className="bg-white rounded-xl card-shadow p-6">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4">Account Information</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                    <input
+                                        type="email"
+                                        value={currentUser.email}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        readOnly
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Law Firm Name</label>
+                                    <input
+                                        type="text"
+                                        value={currentUser.firmName}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Bar Number</label>
+                                    <input
+                                        type="text"
+                                        value={currentUser.barNumber}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                    <input
+                                        type="tel"
+                                        placeholder="Not set"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                            </div>
+                            <button className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                                Update Account
+                            </button>
+                        </div>
+
+                        <div className="bg-white rounded-xl card-shadow p-6">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4">Preferences</h2>
+                            <div className="space-y-4">
+                                {Object.entries(settings).map(([key, value]) => (
+                                    <div key={key} className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="font-medium text-gray-900 capitalize">
+                                                {key.replace(/([A-Z])/g, ' $1').trim()}
+                                            </h3>
+                                            <p className="text-sm text-gray-600">
+                                                {key === 'notifications' && 'Receive browser notifications for important updates'}
+                                                {key === 'emailUpdates' && 'Get email notifications about your cases'}
+                                                {key === 'darkMode' && 'Use dark theme throughout the application'}
+                                                {key === 'autoBackup' && 'Automatically backup your data daily'}
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={value}
+                                                onChange={(e) => setSettings({...settings, [key]: e.target.checked})}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl card-shadow p-6">
+                            <h2 className="text-xl font-bold text-gray-900 mb-4">Security</h2>
+                            <div className="space-y-4">
+                                <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                    <div className="text-left">
+                                        <h3 className="font-medium text-gray-900">Change Password</h3>
+                                        <p className="text-sm text-gray-600">Update your account password</p>
+                                    </div>
+                                    <i className="fas fa-chevron-right text-gray-400"></i>
+                                </button>
+                                <button className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                                    <div className="text-left">
+                                        <h3 className="font-medium text-gray-900">Two-Factor Authentication</h3>
+                                        <p className="text-sm text-gray-600">Add an extra layer of security</p>
+                                    </div>
+                                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Coming Soon</span>
+                                </button>
+                                <button className="w-full flex items-center justify-between p-4 border border-red-200 rounded-lg hover:bg-red-50 text-red-600">
+                                    <div className="text-left">
+                                        <h3 className="font-medium">Delete Account</h3>
+                                        <p className="text-sm">Permanently delete your account and all data</p>
+                                    </div>
+                                    <i className="fas fa-trash text-red-400"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Initialize demo data if none exists
+        if (mockDB.users.length === 0) {
+            mockDB.users.push({
+                id: 1,
+                email: 'demo@law.com',
+                password: 'demo123',
+                firmName: 'Demo Law Firm',
+                barNumber: 'BAR12345',
+                subscription: 'professional',
+                createdAt: new Date().toISOString()
+            });
+            saveToStorage();
+        }
+
+        // Render the app
+        ReactDOM.render(<MyLawManager />, document.getElementById('root'));
+    </script>
+</body>
+</html>

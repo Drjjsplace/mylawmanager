@@ -1,31 +1,29 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-  swcMinify: true,
-  async headers() {
-    return [
-      {
-        source: '/api/(.*)',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*'
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET,OPTIONS,PATCH,DELETE,POST,PUT'
-          },
-          {
-            key: 'Access-Control-Allow-Headers',
-            value: 'Authorization, Content-Type'
-          }
-        ]
-      }
-    ];
-  },
-  experimental: {
-    serverComponentsExternalPackages: ['pg']
-  }
-}
-
-module.exports = nextConfig
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyLawManager - Nevada Legal AI</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 50px; max-width: 800px; margin: 0 auto; }
+        h1 { color: #2c3e50; }
+        .status { background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🏛️ MyLawManager</h1>
+    <h2>Nevada Legal AI Practice Management System</h2>
+    
+    <div class="status">
+        <p><strong>Status:</strong> Backend API System Online</p>
+        <p>Your legal AI system is ready for configuration.</p>
+    </div>
+    
+    <h3>Next Steps:</h3>
+    <ul>
+        <li>Upload Nevada legal documents</li>
+        <li>Configure OpenAI integration</li>
+        <li>Set up user accounts</li>
+    </ul>
+</body>
+</html>

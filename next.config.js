@@ -9,7 +9,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: 'https://www.mylawmanager.com'
+            value: '*'
           },
           {
             key: 'Access-Control-Allow-Methods',

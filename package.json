@@ -1,9 +1,7 @@
 {
   "name": "mylawmanager",
   "version": "1.0.0",
-  "description": "Legal AI Practice Management System",
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
